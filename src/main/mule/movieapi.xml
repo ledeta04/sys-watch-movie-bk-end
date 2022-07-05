@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd 
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd">
+    <http:listener-config name="movieapi-httpListenerConfig">
+        <http:listener-connection host="0.0.0.0" port="8081" />
+    </http:listener-config>
+    <apikit:config name="movieapi-config" api="movieapi.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
+    <db:config name="Database_Config" doc:name="Database Config" doc:id="c0849e1e-18b0-4be9-924c-f69bc2f36af7" >
+		<db:my-sql-connection host="${db.host}" port="${db.port}" user="${db.user}" password="${db.pw}" database="${db.name}"/>
+	</db:config>
+	<configuration-properties doc:name="Configuration properties" doc:id="965627b1-216b-45cb-956a-08c8ebb4ebf8" file="dev.yaml" />
+	<flow name="movieapi-main">
+        <http:listener config-ref="movieapi-httpListenerConfig" path="/api/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:router config-ref="movieapi-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:BAD_REQUEST">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Bad request"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">400</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Method not allowed"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">405</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_ACCEPTABLE">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not acceptable"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">406</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Unsupported media type"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">415</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_IMPLEMENTED">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not Implemented"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">501</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="movieapi-console">
+        <http:listener config-ref="movieapi-httpListenerConfig" path="/console/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:console config-ref="movieapi-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="get:\movie:movieapi-config">
+        <scatter-gather doc:name="Scatter-Gather" doc:id="2bfc1ca6-4663-458d-934e-4849aa1ae146" >
+			<route >
+				<db:select doc:name="Select" doc:id="75d98838-581a-4057-8dda-02b284550d97" config-ref="Database_Config">
+					<db:sql ><![CDATA[select * from movies]]></db:sql>
+				</db:select>
+			</route>
+			<route >
+				<db:select doc:name="Select" doc:id="d24f25d4-7223-4f35-bca7-4e53e5e58502" config-ref="Database_Config">
+					<db:sql ><![CDATA[select * from bookingData]]></db:sql>
+				</db:select>
+			</route>
+		</scatter-gather>
+		<ee:transform doc:name="Transform Message" doc:id="c085151d-4ebb-4251-b2a8-d427ef22ff1f" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+import * from dw::core::Strings
+output application/json
+
+var movieLists = payload."0".payload
+var bookingData = payload."1".payload
+---
+
+movieLists map(movieListsValue)->{
+	movieTitle: capitalize(movieListsValue.movieTitle),
+	cinimaCode: movieListsValue.cinimaCode,
+	startingTime: movieListsValue.startingTime,
+	endingTime: movieListsValue.endingTime,
+	movieType: movieListsValue.movieType,
+	postDate: movieListsValue.postDate,
+	price: movieListsValue.price,
+	(bookingData map(bookingDataValue)->{
+		bookDate: bookingDataValue.bookDate,
+		viewType: bookingDataValue.viewType
+	}
+	)
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+    </flow>
+    <flow name="post:\movie:application\json:movieapi-config">
+        <ee:transform>
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload filter($.movieType == "Drama" or
+	          ($.movieType == "Adventure"))
+	     map ((val, index)->{
+	     	movieTitle: val.movieTitle,
+	     	cinimaCode: val.cinimaCode,
+	     	endingTime: val.endingTime,
+	     	movieType: val.movieType,
+	     	startingTime: val.startingTime,
+	     	postDate: now() as String,
+	     	price: val.price
+	     })]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="881273a3-cb14-4021-9b92-28d48b77d217" message="#[payload]"/>
+		<db:bulk-insert doc:name="Bulk insert" doc:id="ef7e7cc7-fa7c-4e0e-b034-931185f53e4c" config-ref="Database_Config">
+			<db:sql ><![CDATA[insert into movies (movieTitle, cinimaCode, startingTime, endingTime, movieType, postDate, price)
+values(:movieTitle, :cinimaCode, :startingTime, :endingTime, :movieType, :postDate, :price)]]></db:sql>
+		</db:bulk-insert>
+		<set-payload value='#["New Movie has been Added !"]' doc:name="Set Payload" doc:id="4d4b2b8d-5a33-4650-8724-492ba2602e93" />
+    </flow>
+</mule>

@@ -1,0 +1,24 @@
+#%RAML 1.0
+title: MovieAPI
+
+/movie:
+  post:
+    body:
+      application/json:
+        example: !include examples/MovieLists.raml
+    responses:
+      201:
+        body:
+          application/json:
+            example:
+              {
+                "message": "Movie Uploaded Successfully, Thank You!"
+              }
+  get:
+    responses:
+      200:
+        body:
+          application/json:
+            example: !include examples/MovieLists.raml
+              
+          
